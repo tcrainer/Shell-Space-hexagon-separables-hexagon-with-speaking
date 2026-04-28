@@ -12,7 +12,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #050508; color: white; }
+        body { font-family: 'Inter', sans-serif; background-color: #050508; color: white; margin: 0; overflow-x: hidden; }
         .perspective-1000 { perspective: 1000px; }
         .transform-style-3d { transform-style: preserve-3d; }
         .backface-hidden { backface-visibility: hidden; }
@@ -43,7 +43,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // --- SVG Icons ---
+        // --- SVG Icons (Individuelle Pfade) ---
         const Icon = ({ name, size = 24, className = "" }) => {
             const icons = {
                 rocket: <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09zM12 15l-3-3m3 3l2 2m-2-2v-1a2 2 0 0 0-2-2h-1M12 15c.83 0 1.54.5 1.84 1.22l.16.78a2 2 0 0 1-1 2.5l-1.5.5M12 15V9m0 0l-1-1m1 1l1-1M12 9V4s-5 1-5 5v2h2m3-2l3-3m-3 3h1a2 2 0 0 1 2 2v1m-3-3c-.83 0-1.54.5-1.84 1.22l-.16.78a2 2 0 0 0 1 2.5l1.5.5M12 9s5 1 5 5v2h-2" />,
@@ -51,6 +51,7 @@
                 rotate: <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8m0 0V3m0 5h5" />,
                 play: <path d="M5 3l14 9-14 9V3z" />,
                 check: <path d="M20 6L9 17l-5-5" />,
+                send: <React.Fragment><line x1="22" y1="2" x2="11" y2="13" /><path d="M22 2L15 22L11 13L2 9L22 2Z" /></React.Fragment>,
                 x: <path d="M18 6L6 18M6 6l12 12" />,
                 arrow: <path d="M5 12h14M12 5l7 7-7 7" />,
                 mic: <React.Fragment><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></React.Fragment>,
@@ -63,7 +64,7 @@
             );
         };
 
-        // --- DATA ---
+        // --- DATENSATZ ---
         const TASKS = [
             { en: "I am putting on the black trousers.", correct: "Ich ziehe die schwarze Hose an." },
             { en: "You have the red jumper on.", correct: "Du hast den roten Pulli an." },
@@ -84,7 +85,17 @@
             { en: "She is borrowing a violet dress.", correct: "Sie leiht ein violettes Kleid aus." },
             { en: "I am packing the pink socks.", correct: "Ich packe die rosa Socken ein." },
             { en: "You (plural) are putting on a light blue jacket.", correct: "Ihr zieht eine hellblaue Jacke an." },
-            { en: "They have the dark blue jeans on.", correct: "Sie haben die dunkelblaue Jeans an." }
+            { en: "They have the dark blue jeans on.", correct: "Sie haben die dunkelblaue Jeans an." },
+            { en: "I am taking off the ugly tie after the party.", correct: "Ich ziehe nach der Party die hässliche Krawatte aus." },
+            { en: "She is buying a comfy hoody.", correct: "Sie kauft einen bequemen Kapuzenpulli ein." },
+            { en: "We are borrowing a long scarf.", correct: "Wir leihen einen langen Schal aus." },
+            { en: "He is packing the checkered shirt.", correct: "Er packt das karierte Hemd ein." },
+            { en: "I am putting on the black shoes now.", correct: "Ich ziehe jetzt die schwarzen Schuhe an." },
+            { en: "You have the yellow swimsuit on.", correct: "Du hast den gelben Badeanzug an." },
+            { en: "They are taking off the white socks.", correct: "Sie ziehen die weißen Socken aus." },
+            { en: "We are buying a short skirt.", correct: "Wir kaufen einen kurzen Rock ein." },
+            { en: "She is borrowing a beautiful coat.", correct: "Sie leiht einen schönen Mantel aus." },
+            { en: "I am packing the new swim trunks.", correct: "Ich packe die neue Badehose ein." }
         ];
 
         const HEX_LAYOUT = [
@@ -110,7 +121,7 @@
 
         const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
 
-        // --- SPEECH RECOGNITION SETUP ---
+        // --- SPEECH RECOGNITION ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
         const App = () => {
@@ -123,12 +134,12 @@
             const [winner, setWinner] = useState(null);
             const [isEscaping, setIsEscaping] = useState(false);
             
-            // Runde-Logik
+            // Runden & Fehler Logik
             const [r1ClickedWords, setR1ClickedWords] = useState([]);
             const [r1AvailableWords, setR1AvailableWords] = useState([]);
-            const [r1Mistakes, setR1Mistakes] = useState(0);
+            const [mistakes, setMistakes] = useState(0);
 
-            // Sprach-Logik
+            // Sprach Logik
             const [isListening, setIsListening] = useState(false);
             const [voiceTranscript, setVoiceTranscript] = useState('');
             const [voiceResult, setVoiceResult] = useState(null); // 'success', 'fail'
@@ -139,12 +150,14 @@
                     recognitionRef.current = new SpeechRecognition();
                     recognitionRef.current.lang = 'de-DE';
                     recognitionRef.current.continuous = false;
-                    recognitionRef.current.interimResults = false;
+                    recognitionRef.current.interimResults = true;
 
                     recognitionRef.current.onresult = (event) => {
-                        const transcript = event.results[0][0].transcript;
+                        const transcript = Array.from(event.results)
+                            .map(result => result[0])
+                            .map(result => result.transcript)
+                            .join('');
                         setVoiceTranscript(transcript);
-                        checkVoiceMatch(transcript);
                     };
 
                     recognitionRef.current.onend = () => setIsListening(false);
@@ -172,7 +185,7 @@
             const prepareTask = (task, level) => {
                 setCurrentTask(task);
                 setR1ClickedWords([]);
-                setR1Mistakes(0);
+                setMistakes(0);
                 setVoiceTranscript('');
                 setVoiceResult(null);
                 if (level === 1) {
@@ -182,8 +195,8 @@
                 }
             };
 
-            const checkVoiceMatch = (transcript) => {
-                const cleanInput = transcript.toLowerCase().replace(/[.,!?;]/g, "").trim();
+            const checkVoiceAnswer = () => {
+                const cleanInput = voiceTranscript.toLowerCase().replace(/[.,!?;]/g, "").trim();
                 const cleanTarget = currentTask.correct.toLowerCase().replace(/[.,!?;]/g, "").trim();
                 
                 if (cleanInput === cleanTarget) {
@@ -191,7 +204,18 @@
                     setTimeout(() => handleCorrect(), 1000);
                 } else {
                     setVoiceResult('fail');
-                    setTimeout(() => nextTurn(), 2000);
+                    const newMistakes = mistakes + 1;
+                    setMistakes(newMistakes);
+
+                    if (newMistakes >= 2) {
+                        setTimeout(() => nextTurn(), 2000);
+                    } else {
+                        // Reset für finalen Versuch
+                        setTimeout(() => {
+                            setVoiceTranscript('');
+                            setVoiceResult(null);
+                        }, 1500);
+                    }
                 }
             };
 
@@ -203,7 +227,6 @@
                 if (isListening) {
                     recognitionRef.current.stop();
                 } else {
-                    setVoiceTranscript('');
                     setVoiceResult(null);
                     setIsListening(true);
                     recognitionRef.current.start();
@@ -213,6 +236,7 @@
             const handleR1Click = (word, index) => {
                 const targetWords = currentTask.correct.replace(/\.$/, '').split(' ').filter(w => w.length > 0);
                 const nextIdx = r1ClickedWords.length;
+                
                 if (word === targetWords[nextIdx]) {
                     const newClicked = [...r1ClickedWords, word];
                     setR1ClickedWords(newClicked);
@@ -221,8 +245,8 @@
                     setR1AvailableWords(newAvailable);
                     if (newClicked.length === targetWords.length) setTimeout(() => handleCorrect(), 500);
                 } else {
-                    const m = r1Mistakes + 1;
-                    setR1Mistakes(m);
+                    const m = mistakes + 1;
+                    setMistakes(m);
                     if (m >= 2) setTimeout(() => nextTurn(), 1000);
                     else {
                         setTimeout(() => {
@@ -234,18 +258,22 @@
             };
 
             const handleCorrect = () => {
-                const p = players[turnIndex];
-                const avail = Array.from({ length: 14 }, (_, i) => i).filter(i => !p.vanishedIndices.includes(i));
+                const activePlayer = players[turnIndex];
+                const avail = Array.from({ length: 14 }, (_, i) => i).filter(i => !activePlayer.vanishedIndices.includes(i));
                 if (avail.length > 0) {
                     const ridx = avail[Math.floor(Math.random() * avail.length)];
-                    const updatedP = [...players];
-                    updatedP[turnIndex].vanishedIndices.push(ridx);
-                    const count = updatedP[turnIndex].vanishedIndices.length;
-                    if (count >= 10) updatedP[turnIndex].level = 3;
-                    else if (count >= 5) updatedP[turnIndex].level = 2;
-                    setPlayers(updatedP);
-                    if (checkPath(updatedP[turnIndex].vanishedIndices)) {
-                        setWinner(updatedP[turnIndex]);
+                    const updatedPlayers = [...players];
+                    updatedPlayers[turnIndex].vanishedIndices.push(ridx);
+                    const count = updatedPlayers[turnIndex].vanishedIndices.length;
+                    
+                    // Level Up Logic
+                    if (count >= 10) updatedPlayers[turnIndex].level = 3;
+                    else if (count >= 5) updatedPlayers[turnIndex].level = 2;
+                    
+                    setPlayers(updatedPlayers);
+                    
+                    if (checkPath(updatedPlayers[turnIndex].vanishedIndices)) {
+                        setWinner(updatedPlayers[turnIndex]);
                         setIsEscaping(true);
                         setTimeout(() => setGameState('win'), 3000);
                         return;
@@ -278,35 +306,34 @@
                 prepareTask(pool[0], players[ni].level);
             };
 
-            // Fix for ReferenceError: Define activePlayer variable
             const activePlayer = players[turnIndex];
 
             if (gameState === 'setup') return <SetupScreen onStart={initGame} playerCount={playerCount} setPlayerCount={setPlayerCount} />;
             if (gameState === 'win') return (
-                <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center">
-                    <Icon name="trophy" size={80} className="text-yellow-500 mb-8" />
+                <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center bg-[#050508]">
+                    <Icon name="trophy" size={80} className="text-yellow-500 mb-8 shadow-xl" />
                     <h2 className="text-6xl font-black text-white uppercase mb-4">{winner?.name} ist entkommen!</h2>
-                    <button onClick={() => window.location.reload()} className="bg-white text-indigo-950 font-black px-12 py-5 rounded-2xl uppercase tracking-widest text-sm hover:scale-105 transition-transform">Neu Starten</button>
+                    <button onClick={() => window.location.reload()} className="bg-white text-indigo-950 font-black px-12 py-5 rounded-2xl uppercase tracking-widest text-sm hover:scale-105 transition-transform shadow-2xl">Neu Starten</button>
                 </div>
             );
 
-            // Safety check for activePlayer
-            if (gameState === 'playing' && !activePlayer) return null;
+            if (!activePlayer) return null;
 
             return (
-                <div className="min-h-screen p-4 md:p-8 flex flex-col items-center">
+                <div className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-[#050508]">
                     <header className="w-full max-w-6xl flex justify-between items-center mb-10 z-10">
                         <div className="flex items-center gap-4">
                             <div className="bg-indigo-600 p-3 rounded-2xl shadow-xl"><Icon name="rocket" className="text-white transform -rotate-45" size={24} /></div>
                             <div>
                                 <h1 className="text-2xl font-black uppercase tracking-widest leading-none text-white">Space Escape</h1>
-                                <p className="text-[10px] text-indigo-500 font-bold tracking-[0.4em] uppercase mt-1">Voice Navigation Protocol</p>
+                                <p className="text-[10px] text-indigo-500 font-bold tracking-[0.4em] uppercase mt-1">Interstellar Mission Control</p>
                             </div>
                         </div>
-                        <button onClick={() => window.location.reload()} className="text-slate-600 hover:text-white p-2"><Icon name="rotate" size={24} /></button>
+                        <button onClick={() => window.location.reload()} className="text-slate-600 hover:text-white p-2 transition-colors"><Icon name="rotate" size={24} /></button>
                     </header>
 
                     <main className="w-full max-w-7xl flex flex-col items-center gap-12 z-10 relative">
+                        {/* Spieler-Gitter Anzeige */}
                         <div className="flex flex-wrap justify-center gap-8 w-full">
                             {players.map((p, idx) => {
                                 const active = turnIndex === idx;
@@ -329,7 +356,7 @@
                                                         const idx = prevCount + cIdx;
                                                         const vanished = p.vanishedIndices.includes(idx);
                                                         return (
-                                                            <div key={idx} className={`absolute transition-all duration-1000 ${vanished ? 'opacity-0 scale-0' : 'opacity-100'}`}
+                                                            <div key={idx} className={`absolute transition-all duration-1000 ${vanished ? 'opacity-0 scale-0 pointer-events-none' : 'opacity-100'}`}
                                                                 style={{ left: (cIdx + row.offset) * 35, top: rIdx * 30, width: 35, height: 35, clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', background: active ? p.theme.hex : '#334155' }}>
                                                                 <div className="absolute inset-0.5 bg-slate-950 flex items-center justify-center text-[9px] font-black text-white" style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}>{p.gridNumbers[idx]}</div>
                                                             </div>
@@ -343,50 +370,67 @@
                             })}
                         </div>
 
-                        <div className={`w-full max-w-2xl bg-slate-900/40 border-2 ${activePlayer?.theme?.border || 'border-indigo-500'} p-8 rounded-[3rem] backdrop-blur-md shadow-2xl relative`}>
-                            <div className={`absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-2 ${activePlayer?.theme?.primary || 'bg-indigo-600'} rounded-full text-[10px] font-black uppercase tracking-widest text-white`}>
+                        {/* Interaktive Aufgabenkarte */}
+                        <div className={`w-full max-w-2xl bg-slate-900/40 border-2 ${activePlayer?.theme?.border || 'border-indigo-500'} p-8 rounded-[3rem] backdrop-blur-md shadow-2xl relative transition-all duration-500`}>
+                            <div className={`absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-2 ${activePlayer?.theme?.primary || 'bg-indigo-600'} rounded-full text-[10px] font-black uppercase tracking-widest text-white shadow-lg`}>
                                 Runde {activePlayer?.level}
                             </div>
+                            
                             <div className="mt-4 text-center">
+                                <div className={`flex items-center justify-center gap-2 ${activePlayer?.theme?.text || 'text-indigo-400'} mb-4`}>
+                                    <Icon name={activePlayer.level === 1 ? "check" : "mic"} size={16} />
+                                    <span className="text-xs font-bold uppercase tracking-widest">{activePlayer.name} am Zug</span>
+                                </div>
+                                
                                 <h2 className="text-2xl font-black text-white mb-8 leading-tight">{currentTask?.en}</h2>
+                                
                                 {activePlayer?.level === 1 ? (
                                     <div className="space-y-8">
                                         <div className="min-h-[60px] p-4 bg-black/40 rounded-2xl border border-white/5 flex flex-wrap justify-center gap-2 text-indigo-100">
-                                            {r1ClickedWords.map((word, i) => (<span key={i} className={`px-3 py-1 ${activePlayer.theme.primary} text-white rounded-lg text-sm font-bold shadow-lg`}>{word}</span>))}
-                                            {r1ClickedWords.length === 0 && <span className="text-slate-700 text-sm font-bold uppercase tracking-widest py-1">Satz bilden...</span>}
+                                            {r1ClickedWords.map((word, i) => (<span key={i} className={`px-3 py-1 ${activePlayer.theme.primary} text-white rounded-lg text-sm font-bold shadow-lg animate-in zoom-in`}>{word}</span>))}
+                                            {r1ClickedWords.length === 0 && <span className="text-slate-700 text-sm font-bold uppercase tracking-widest py-1">Satz zusammensetzen...</span>}
                                         </div>
                                         <div className="flex flex-wrap justify-center gap-2">
-                                            {r1AvailableWords.map((word, i) => (<button key={i} onClick={() => handleR1Click(word, i)} className={`px-4 py-2 bg-slate-800 hover:${activePlayer.theme.primary} text-slate-400 hover:text-white rounded-xl text-sm font-bold transition-all`}>{word}</button>))}
+                                            {r1AvailableWords.map((word, i) => (<button key={i} disabled={mistakes >= 2} onClick={() => handleR1Click(word, i)} className={`px-4 py-2 bg-slate-800 hover:${activePlayer.theme.primary} text-slate-400 hover:text-white rounded-xl text-sm font-bold transition-all border border-white/5`}>{word}</button>))}
                                         </div>
-                                        {r1Mistakes === 1 && <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest animate-pulse flex items-center justify-center gap-2"><Icon name="alert" size={14} /> Letzter Versuch!</p>}
+                                        {mistakes === 1 && <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest animate-pulse flex items-center justify-center gap-2"><Icon name="alert" size={14} /> Letzter Versuch!</p>}
                                     </div>
                                 ) : (
                                     <div className="flex flex-col items-center gap-6">
-                                        {activePlayer?.level === 2 && <p className="text-slate-500 italic text-sm mb-2">{currentTask?.correct?.replace(/[.]/g, '').split(' ').sort(() => Math.random() - 0.5).join(' / ')}</p>}
+                                        {activePlayer.level === 2 && <p className="text-slate-500 italic text-sm mb-2">{currentTask?.correct?.replace(/[.]/g, '').split(' ').sort(() => Math.random() - 0.5).join(' / ')}</p>}
                                         
                                         <button 
                                             onClick={toggleListening}
-                                            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${isListening ? 'bg-red-500 pulse-mic' : 'bg-indigo-600 hover:bg-indigo-500 shadow-lg'}`}
+                                            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${isListening ? 'bg-red-500 pulse-mic' : `${activePlayer.theme.primary} shadow-lg shadow-${activePlayer.theme.name}-500/20`}`}
                                         >
                                             <Icon name="mic" size={32} className="text-white" />
                                         </button>
                                         
-                                        <div className={`min-h-[80px] w-full p-6 bg-black/30 rounded-3xl border-2 transition-colors ${voiceResult === 'success' ? 'border-emerald-500 text-emerald-400' : voiceResult === 'fail' ? 'border-red-500 text-red-400' : 'border-white/5 text-slate-300'}`}>
+                                        <div className={`min-h-[80px] w-full p-6 bg-black/30 rounded-3xl border-2 transition-colors flex items-center justify-center ${voiceResult === 'success' ? 'border-emerald-500 text-emerald-400' : voiceResult === 'fail' ? 'border-red-500 text-red-400' : 'border-white/5 text-slate-300'}`}>
                                             {voiceTranscript ? (
-                                                <p className="text-xl font-bold italic">"{voiceTranscript}"</p>
+                                                <p className="text-xl font-bold italic text-white">"{voiceTranscript}"</p>
                                             ) : (
-                                                <p className="text-sm uppercase tracking-widest font-black opacity-30">Klicke auf das Mikrofon und sprich...</p>
+                                                <p className="text-sm uppercase tracking-widest font-black opacity-30">Mikrofon anklicken und sprechen...</p>
                                             )}
                                         </div>
                                         
-                                        {voiceResult === 'fail' && <p className="text-red-500 font-black text-[10px] uppercase animate-bounce">Inkorrekt! Übergabe...</p>}
+                                        {voiceTranscript && !isListening && !voiceResult && (
+                                            <button 
+                                                onClick={checkVoiceAnswer}
+                                                className={`px-10 py-4 ${activePlayer.theme.primary} text-white rounded-2xl font-black uppercase text-xs tracking-widest flex items-center gap-3 hover:scale-105 transition-all shadow-xl`}
+                                            >
+                                                <Icon name="send" size={16} /> Antwort prüfen
+                                            </button>
+                                        )}
+                                        
+                                        {voiceResult === 'fail' && <p className="text-red-500 font-black text-[10px] uppercase animate-bounce">{mistakes >= 2 ? "Falsch! Übergabe..." : "Inkorrekt! Ein letzter Versuch..."}</p>}
                                         {voiceResult === 'success' && <p className="text-emerald-500 font-black text-[10px] uppercase animate-pulse">Perfekt!</p>}
                                     </div>
                                 )}
                             </div>
                         </div>
                     </main>
-                    <footer className="mt-20 text-slate-800 text-[10px] font-black uppercase tracking-[0.5em]">Interstellar Lingua Protocol // v5.0.2</footer>
+                    <footer className="mt-20 text-slate-800 text-[10px] font-black uppercase tracking-[0.5em]">Interstellar Lingua Protocol // v5.0.4</footer>
                 </div>
             );
         };
@@ -394,7 +438,7 @@
         const SetupScreen = ({ onStart, playerCount, setPlayerCount }) => {
             const [names, setNames] = useState(['', '', '']);
             return (
-                <div className="min-h-screen flex items-center justify-center p-6 text-indigo-100">
+                <div className="min-h-screen flex items-center justify-center p-6 text-indigo-100 bg-[#050508]">
                     <div className="w-full max-w-md bg-indigo-950/10 border border-indigo-500/20 p-12 rounded-[3.5rem] backdrop-blur-2xl shadow-2xl">
                         <div className="w-20 h-20 bg-indigo-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8 shadow-2xl rotate-12">
                             <Icon name="rocket" size={40} className="text-white transform -rotate-45" />
@@ -402,17 +446,17 @@
                         <h2 className="text-4xl font-black text-center uppercase tracking-tighter mb-2 italic text-white">Space Hex</h2>
                         <p className="text-center text-indigo-500 text-[10px] font-black uppercase tracking-[0.4em] mb-12">Voice-Linked Local Link</p>
                         <div className="mb-8 text-center">
-                            <label className="text-[10px] font-black uppercase text-indigo-600 tracking-[0.2em] mb-4 block">Crew Size</label>
+                            <label className="text-[10px] font-black uppercase text-indigo-600 tracking-[0.2em] mb-4 block text-center">Crew Size</label>
                             <div className="flex gap-3 p-1.5 bg-indigo-950/50 rounded-2xl border border-indigo-500/10">
-                                {[2, 3].map(n => (<button key={n} onClick={() => setPlayerCount(n)} className={`flex-1 py-3 rounded-xl font-black text-xs uppercase transition-all ${playerCount === n ? 'bg-indigo-600 text-white' : 'text-indigo-500'}`}>{n} Pilots</button>))}
+                                {[2, 3].map(n => (<button key={n} onClick={() => setPlayerCount(n)} className={`flex-1 py-3 rounded-xl font-black text-xs uppercase transition-all ${playerCount === n ? 'bg-indigo-600 text-white shadow-lg' : 'text-indigo-500 hover:text-indigo-300'}`}>{n} Pilots</button>))}
                             </div>
                         </div>
                         <div className="space-y-4 mb-10">
                             {[...Array(playerCount)].map((_, i) => (
-                                <input key={i} type="text" placeholder={`Pilot ${i + 1}`} value={names[i]} onChange={(e) => { const n = [...names]; n[i] = e.target.value; setNames(n); }} className="w-full bg-indigo-900/10 border border-indigo-500/10 rounded-2xl px-6 py-4 text-white font-bold text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                                <input key={i} type="text" placeholder={`Pilot ${i + 1} Name`} value={names[i]} onChange={(e) => { const n = [...names]; n[i] = e.target.value; setNames(n); }} className="w-full bg-indigo-900/10 border border-indigo-500/10 rounded-2xl px-6 py-4 text-white font-bold text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                             ))}
                         </div>
-                        <button onClick={() => onStart(names.slice(0, playerCount))} className="w-full bg-white text-indigo-950 font-black py-5 rounded-2xl uppercase tracking-widest text-xs flex items-center justify-center gap-4 hover:scale-105 transition-all shadow-2xl">Initialise Mission <Icon name="play" size={18} /></button>
+                        <button onClick={() => onStart(names.slice(0, playerCount))} className="w-full bg-white text-indigo-950 font-black py-5 rounded-2xl uppercase tracking-widest text-xs flex items-center justify-center gap-4 hover:scale-105 transition-all shadow-2xl active:scale-95">Initialise Mission <Icon name="play" size={18} /></button>
                     </div>
                 </div>
             );
